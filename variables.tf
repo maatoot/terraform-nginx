@@ -19,10 +19,13 @@ variable "instance_type" {
 }
 
 variable "ami_id" {
-  # Ubuntu 22.04 LTS (Jammy) في إيرلندا – تأكد من أحدث AMI ID
   default = "ami-0c1c30571d2dae5c9"
 }
 
 variable "key_name" {
-  default = "~/.ssh/TERRA_KEY.pem"
+  default = "TERRA_KEY" 
+}
+
+variable "private_key_path" {
+  default = "/root/.ssh/TERRA_KEY.pem" 
 }
