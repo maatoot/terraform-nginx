@@ -19,6 +19,15 @@ pipeline {
             }
         }
 
+        stage('Clean State') {
+            steps {
+                // إزالة IGW القديم من الـ state
+                sh '''
+                terraform state rm aws_internet_gateway.igw || true
+                '''
+            }
+        }
+
         stage('Terraform Apply') {
             steps {
                 sh '''
