@@ -2,10 +2,8 @@ pipeline {
     agent any
 
     environment {
-        // Inject AWS credentials من Jenkins Dashboard
-        AWS_ACCESS_KEY_ID     = credentials('aws-creds').username
-        AWS_SECRET_ACCESS_KEY = credentials('aws-creds').password
-        AWS_DEFAULT_REGION    = "eu-west-1"
+        CREDS = credentials('aws-creds')
+        AWS_DEFAULT_REGION = "eu-west-1"
     }
 
     stages {
@@ -23,7 +21,11 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                sh 'terraform apply -auto-approve'
+                sh '''
+                export AWS_ACCESS_KEY_ID=$CREDS_USR
+                export AWS_SECRET_ACCESS_KEY=$CREDS_PSW
+                terraform apply -auto-approve
+                '''
             }
         }
 
