@@ -1,16 +1,18 @@
 provider "aws" {
-  region = "eu-west-1"
+  region = var.region
 }
 
 ##########################################
 # VPC
 ##########################################
 
-resource "aws_vpc" "main_server_vpc" {
-  cidr_block = "192.168.0.0/24"
+resource "aws_vpc" "main_vpc" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_support   = true
+  enable_dns_hostnames = true
 
   tags = {
-    Name = "main-server-vpc"
+    Name = "main_vpc"
   }
 }
 
@@ -19,13 +21,13 @@ resource "aws_vpc" "main_server_vpc" {
 ##########################################
 
 resource "aws_subnet" "public_subnet" {
-  vpc_id                  = aws_vpc.main_server_vpc.id
-  cidr_block              = "192.168.0.0/28"
+  vpc_id                  = aws_vpc.main_vpc.id
+  cidr_block              = var.public_subnet_cidr
   map_public_ip_on_launch = true
-  availability_zone       = "eu-west-1a"
+  availability_zone       = var.az
 
   tags = {
-    Name = "main-server-public-subnet"
+    Name = "public_subnet"
   }
 }
 
@@ -34,10 +36,10 @@ resource "aws_subnet" "public_subnet" {
 ##########################################
 
 resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.main_server_vpc.id
+  vpc_id = aws_vpc.main_vpc.id
 
   tags = {
-    Name = "main-server-igw"
+    Name = "main_igw"
   }
 }
 
@@ -46,7 +48,7 @@ resource "aws_internet_gateway" "igw" {
 ##########################################
 
 resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.main_server_vpc.id
+  vpc_id = aws_vpc.main_vpc.id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -54,7 +56,7 @@ resource "aws_route_table" "public_rt" {
   }
 
   tags = {
-    Name = "main-server-public-rt"
+    Name = "public_rt"
   }
 }
 
@@ -64,13 +66,13 @@ resource "aws_route_table_association" "public_assoc" {
 }
 
 ##########################################
-# Security Group
+# Security Group (SSH + HTTP)
 ##########################################
 
-resource "aws_security_group" "main_server_sg" {
-  name        = "main-server-sg"
-  description = "Allow SSH, HTTP"
-  vpc_id      = aws_vpc.main_server_vpc.id
+resource "aws_security_group" "nginx_sg" {
+  name        = "nginx_sg"
+  description = "Allow SSH and HTTP"
+  vpc_id      = aws_vpc.main_vpc.id
 
   ingress {
     description = "SSH"
@@ -89,6 +91,7 @@ resource "aws_security_group" "main_server_sg" {
   }
 
   egress {
+    description = "All outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -96,7 +99,7 @@ resource "aws_security_group" "main_server_sg" {
   }
 
   tags = {
-    Name = "main-server-sg"
+    Name = "nginx_sg"
   }
 }
 
@@ -109,7 +112,7 @@ data "aws_ssm_parameter" "ubuntu_ami" {
 }
 
 ##########################################
-# Main Server EC2 Instance
+# Key Pair
 ##########################################
 
 resource "aws_key_pair" "main_server_key" {
@@ -117,62 +120,21 @@ resource "aws_key_pair" "main_server_key" {
   public_key = file("~/.ssh/id_rsa.pub")
 }
 
-resource "aws_instance" "main_server" {
+##########################################
+# EC2 Instance with Nginx
+##########################################
+
+resource "aws_instance" "nginx_server" {
   ami                         = data.aws_ssm_parameter.ubuntu_ami.value
-  instance_type               = "t3.small"
+  instance_type               = var.instance_type
   subnet_id                   = aws_subnet.public_subnet.id
-  vpc_security_group_ids      = [aws_security_group.main_server_sg.id]
+  vpc_security_group_ids      = [aws_security_group.nginx_sg.id]
   associate_public_ip_address = true
   key_name                    = aws_key_pair.main_server_key.key_name
 
-  tags = {
-    Name = "main-server"
-  }
-}
-
-##########################################
-# Web Server Key Pair
-##########################################
-
-resource "aws_key_pair" "web_key" {
-  key_name   = "azoz-web-key"
-  public_key = file("~/.ssh/azoz_web_key.pub")
-}
-
-##########################################
-# Web Server EC2 (Nginx + Custom Page)
-##########################################
-
-resource "aws_instance" "web_server" {
-  ami                         = data.aws_ssm_parameter.ubuntu_ami.value
-  instance_type               = "t3.small"
-  subnet_id                   = aws_subnet.public_subnet.id
-  vpc_security_group_ids      = [aws_security_group.main_server_sg.id]
-  associate_public_ip_address = true
-  key_name                    = aws_key_pair.web_key.key_name
-
-  user_data = <<-EOF
-#!/bin/bash
-apt update -y
-apt install -y nginx
-
-PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
-
-cat <<HTML > /var/www/html/index.html
-<html>
-  <head><title>Azoz Nginx Server</title></head>
-  <body style="font-family: Arial; text-align: center; margin-top: 50px;">
-    <h1>Hello From Azoz Server through Jenkins Pipeline</h1>
-    <h2>Private IP: $PRIVATE_IP</h2>
-  </body>
-</html>
-HTML
-
-systemctl restart nginx
-systemctl enable nginx
-EOF
+  user_data = file("${path.module}/userdata-nginx.sh")
 
   tags = {
-    Name = "HOSSAM-web-server"
+    Name = "nginx_server"
   }
 }
