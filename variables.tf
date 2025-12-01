@@ -24,5 +24,5 @@ variable "ami_id" {
 }
 
 variable "key_name" {
-  default = "TERRA_KEY" # اسم الـ Key Pair اللي موجود عندك في AWS
+  default = "~/.ssh/TERRA_KEY.pem"
 }
