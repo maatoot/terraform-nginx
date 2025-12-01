@@ -88,7 +88,7 @@ resource "aws_instance" "nginx_server" {
     connection {
       type        = "ssh"
       user        = "ubuntu"
-      private_key = file("~/.ssh/TERRA_KEY.pem")
+      private_key = file(var.private_key_path)
       host        = self.public_ip
     }
   }
