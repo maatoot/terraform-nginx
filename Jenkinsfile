@@ -1,14 +1,10 @@
 pipeline {
     agent any
 
-    environment {
-        AWS_DEFAULT_REGION = "eu-west-1"
-    }
-
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/your-repo/terraform-nginx.git'
+                git branch: 'main', url: 'https://github.com/maatoot/terraform-nginx.git'
             }
         }
 
