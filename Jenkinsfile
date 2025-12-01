@@ -19,11 +19,12 @@ pipeline {
             }
         }
 
-        stage('Clean State') {
+        stage('Terraform Destroy All') {
             steps {
-                // إزالة IGW القديم من الـ state
                 sh '''
-                terraform state rm aws_internet_gateway.igw || true
+                export AWS_ACCESS_KEY_ID=$CREDS_USR
+                export AWS_SECRET_ACCESS_KEY=$CREDS_PSW
+                terraform destroy -auto-approve || true
                 '''
             }
         }
