@@ -1,6 +1,13 @@
 pipeline {
     agent any
 
+    environment {
+        // Inject AWS credentials من Jenkins Dashboard
+        AWS_ACCESS_KEY_ID     = credentials('aws-creds').username
+        AWS_SECRET_ACCESS_KEY = credentials('aws-creds').password
+        AWS_DEFAULT_REGION    = "eu-west-1"
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -29,7 +36,7 @@ pipeline {
                     until curl -s http://${ip} >/dev/null 2>&1; do
                       sleep 10
                     done
-                    echo 'Nginx is up!'
+                    echo 'Nginx is up and running on ${ip}!'
                     """
                 }
             }
